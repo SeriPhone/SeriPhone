@@ -1,0 +1,210 @@
+﻿<!DOCTYPE html>
+
+<html lang="fr">
+	<head>
+	  <meta charset="UTF-8">
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.css" />
+		<script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+		<script src="http://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.js"></script>
+		<script>
+		// Quand mobileinit renvoi «true» sur le «document» alors...
+		$( document ).bind( "mobileinit", function() {
+			// On accepte les requêtes AJAX sur des pages externe.
+			$.mobile.allowCrossDomainPages = true;
+			
+			// Attention, cette méthode n'est valable seulement après compilation de PhoneGap. Elle est interdite par les navigateurs pour des raisons de sécurité.
+			// Nous avons utilisé une astuce pour contourner le problème avec PHP.
+		});
+		
+		// KeyDev est notre clé d'accès a l'API de BetaSeries. 
+		keydev = "d6090c9f9d90";
+		
+		// TVSearch() s'occupe de chercher les séries pour le terme stocké en variable «search»
+		function TVSearch(search)
+		{
+			// Dans la div «listtvshow» on met une image de chargement.
+			$( "#listtvshow" ).html('<img style="width:16px;height:11px;position:absolute;top:50%;left:50%;margin-right:16px;margin-bottom: 11px;" src="images/ajaxloader.gif" alt="chargement..." />');
+			
+			// On remplace les espaces par des «_» (test)
+			//search = search.replace(' ', '%20');
+			
+			// On fait une requête Ajax de type GET
+			$.ajax({
+			  type: "GET",
+			  
+			  //Ajouter http:// , changer «php» par «xml»
+			  url: "api.betaseries.com/shows/search.php?key="+keydev+"&title="+search,
+			  // On utilise l'astuce pour bypasser la protection des navigateurs . (Une page PHP locale nous affiche les informations de BetaSeries, la requête reste donc sur notre serveur.
+			  success: function(xml) {
+			  
+				// «xml» correspond a ce qui est donné par l'API BetaSeries
+				// Par exemple : https://api.betaseries.com/shows/search.xml?key=d6090c9f9d90&title=simpsons
+				
+				//On enlève l'image de chargement (Le contenu de la div «listtvshow» sera vide.
+				$( "#listtvshow" ).html('');
+				
+				// Pour chaques balises «show» trouvées 
+				$(xml).find('show').each(function(){
+				
+					// On récupère le contenu (texte) de la balise «title» (Qui correspond au nom de la série)
+					var name = $(this).find('title').text(),
+					// et le contenu (texte) de la balise «url» (Qui nous sera necessaire pour avoir des informations sur la série en question
+					url = $(this).find('url').text();
+					
+					// On affiche, dans un thème «JQuery» (récupéré par FireBug sur FireFox), les épisodes (Avec un event qui execute la fonction ListEpisodes avec comme argument le contenu de la balise
+					// url pour chaques épisodes
+					$( "#listtvshow" ).append(''+
+						'<li class="ui-btn ui-btn-up-c ui-btn-icon-right ui-li-has-arrow ui-li" data-theme="c" data-iconpos="right" data-icon="arrow-r" data-wrapperels="div" data-iconshadow="true" data-shadow="false" data-corners="false">'+
+							'<div class="ui-btn-inner ui-li">'+
+								'<div class="ui-btn-text">'+
+									'<a class="ui-link-inherit" data-transition="slidefade" href="#ListS" onclick="ListEpisodes(\''+ url +'\',\''+name+'\')">' + name + '</a>'+
+								'</div>'+
+								'<span class="ui-icon ui-icon-arrow-r ui-icon-shadow">&nbsp;</span>'+
+							'</div>'+
+						'</li>'
+					);
+				});
+				} 
+			});
+		}
+		
+		// Fonction ListEpisodes, executée après click sur un épisode
+		function ListEpisodes(url,name)
+		{
+
+			// On met une image de chargement dans la div «ListEpisodes»
+			$( "#ListEpisodes" ).html('<img style="width:16px;height:11px;position:absolute;top:50%;left:50%;margin-right:16px;margin-bottom: 11px;" src="images/ajaxloader.gif" alt="chargement..." />');
+			// Et on vide la div «headerListS» de son contenu html
+			$( "#headerListS" ).html('<h3 style="text-align:center;">'+name+'</h3>');
+
+			$.ajax({
+			  type: "GET",
+			  //http://api.betaseries.com/shows/episodes/no-limit.xml?key=d6090c9f9d90
+			  //http://api.betaseries.com/shows/episodes/<url>.xml?key=keydev
+			  url: "api.betaseries.com/shows/episodes.php?key="+keydev+"&url=" + url,
+			  
+			  
+                success: function(xml) {
+				$( "#ListEpisodes" ).html('');
+				
+				
+				var totalseasons = $(xml).find('season').size();
+				for (i=0; i<totalseasons; i++)
+				{
+					if (i<10)
+					{
+						var j = 'S0'+(i+1);
+					}
+					else
+					{
+						var j = 'S'+(i+1);
+					}
+
+					
+					if ($(xml).find('season:eq('+i+')').length){
+						$( "#ListEpisodes" ).append(''+
+							'<li class="ui-li ui-li-divider ui-bar-d ui-li-has-count" data-role="list-divider" role="heading">'+
+							'Saison n°'+(i+1)+
+							'<span class="ui-li-count ui-btn-up-c ui-btn-corner-all">'+(i+1)+'</span>'+
+							'<select name="flip-'+j+'" id="flip-'+j+'" style="margin-right:10px;" data-role="slider" onchange="checkall(this.value, \''+j+'\')" >'+
+								'<option value="off">✘</option>'+
+								'<option value="on">✔</option>'+
+							'</select>'+
+							'</li>'
+						);
+							
+						$(xml).find('season:eq('+i+')').find('episode').each(function(){
+							
+							if ($(this).find('show').length)
+							{
+							
+								$( "#ListEpisodes" ).append(''+
+									'<li class="ui-btn ui-btn-icon-right ui-li-has-arrow ui-li ui-btn-up-d" data-corners="false" data-shadow="false" data-iconshadow="true" data-wrapperels="div" data-icon="arrow-r" data-iconpos="right" data-theme="d">'+
+										'<div class="ui-btn-inner ui-li">'+
+											'<div class="ui-btn-text">'+
+												'<a class="ui-link-inherit" href="'+$(this).find('show').text()+'">'+
+													'<p class="ui-li-aside ui-li-desc">'+
+														'<strong>'+$(this).find('number').text()+'</strong>'+
+														'</p>'+
+														'<h3 class="ui-li-heading">'+$(this).find('title').text()+'</h3>'+
+													'</p>'+
+												'</a>'+
+											'</div>'+
+										'<span class="ui-icon ui-icon-arrow-r ui-icon-shadow">&nbsp;</span>'+
+										'<select id="check-'+$(this).find('number').text()+'" data-role="slider" data-mini="true" onchange="checkonoff(this.value, \''+j+'\')">'+
+											'<option value="off">✘</option>'+
+											'<option value="on">✔</option>'+
+										'</select>'+
+										'</div>'+
+									'</li>'
+								); 
+							}
+						});
+						
+						$('select').slider();
+					};
+				};
+			
+			  }
+			}); 
+			
+		}
+		
+		function checkall(valeur,saison)
+		{
+			$('select[id^="check-'+saison+'"]').val(valeur).slider("refresh");
+		}
+		
+		function checkonoff(valeur,saison)
+		{
+			
+			if (valeur == "off")
+			{
+				$("#flip-"+saison).val(valeur).slider("refresh");
+			}
+			else if (valeur == "on")
+			{
+				var i = 0;
+				
+					$('select[id^="check-'+saison+'"]').each(function(){
+						if ($(this).val() == "off")
+						{
+							i = 1;
+							return false;
+						}
+					});
+				
+				if (i == 0)
+				{
+					$("#flip-"+saison).val(valeur).slider("refresh");
+				}
+			}
+		}
+		
+		</script>
+
+	  <title></title>
+	</head>
+	<body>
+		<div data-role="page" id="home">
+			<li data-role="fieldcontain" style="text-align:center">
+				<label for="Serie">Nom de la Série : </label>
+				<input type="text" name="show" id="show" data-type="search" value="" onchange="TVSearch(this.value)"/>
+			</li>
+			<ul data-role="listview" id='listtvshow'>
+			</ul>
+		</div>
+				
+		<div data-role="page" id="ListS">
+			<div data-role="header" style="min-height:45px;">
+				<a href="#home" data-icon="arrow-l">Retour</a>
+				<span id="headerListS"></span>
+			</div>
+			<ul id="ListEpisodes" data-role="listview" data-theme="d" data-divider-theme="d">
+
+			</ul>
+		</div>
+			
+
+	</body>
+</html>

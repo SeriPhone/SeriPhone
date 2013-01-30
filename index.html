@@ -1,0 +1,157 @@
+﻿<!DOCTYPE html>
+
+<html lang="fr">
+	<head>
+	  <meta charset="UTF-8">
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.css" />
+		<script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+		<script src="http://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.js"></script>
+		<script>
+		$( document ).bind( "mobileinit", function() {
+			$.mobile.allowCrossDomainPages = true;
+		});
+		
+		$(function(){
+	
+		
+		});
+		
+		function TVSearch(search)
+		{
+			$( "#listtvshow" ).html('<img style="width:16px;height:11px;position:absolute;top:50%;left:50%;margin-right:16px;margin-bottom: 11px;" src="images/ajaxloader.gif" alt="chargement..." />');   
+			search = search.replace(' ', '_');
+			$.ajax({
+			  type: "GET",
+			  url: "services.tvrage.com/feeds/full_search.php?show=" + search,
+			  
+			  success: function(xml) {
+				$( "#listtvshow" ).html('');
+				$(xml).find('show').each(function(){
+					var name = $(this).find('name').text(),
+					link = $(this).find('link').text(),
+					showid = $(this).find('showid').text(),
+					aka = $(this).find('akas').find('aka[country="FR"]').text();
+
+					if (aka != "")
+					{
+						name = name + " <i>( " + aka + " )</i>";
+					};
+					
+					$( "#listtvshow" ).append(''+
+						'<li class="ui-btn ui-btn-up-c ui-btn-icon-right ui-li-has-arrow ui-li" data-theme="c" data-iconpos="right" data-icon="arrow-r" data-wrapperels="div" data-iconshadow="true" data-shadow="false" data-corners="false">'+
+							'<div class="ui-btn-inner ui-li">'+
+								'<div class="ui-btn-text">'+
+									'<a class="ui-link-inherit" data-transition="slidefade" href="#ListS" onclick="ListEpisodes('+ showid +')">' + name + '</a>'+
+								'</div>'+
+								'<span class="ui-icon ui-icon-arrow-r ui-icon-shadow">&nbsp;</span>'+
+							'</div>'+
+						'</li>'
+					);
+				});
+				} 
+			});
+		}
+		
+		function ListEpisodes(showid)
+		{
+			$( "#ListEpisodes" ).html('<img style="width:16px;height:11px;position:absolute;top:50%;left:50%;margin-right:16px;margin-bottom: 11px;" src="images/ajaxloader.gif" alt="chargement..." />');
+			$( "#headerListS" ).html('');
+			
+			$.ajax({
+			  type: "GET",
+			  url: "services.tvrage.com/feeds/episode_list.php?sid=" + showid,
+			  
+			  success: function(xml) {
+				$( "#ListEpisodes" ).html('');
+				
+				var error = $(xml).find('Episodelist').text();
+
+				if (error == "")
+				{
+					$( "#ListEpisodes" ).append(''+
+						'<li class="ui-li ui-li-divider ui-bar-d ui-li-has-count" data-role="list-divider" role="heading">'+
+						'Oops ! Les informations relative à cette série son malheureusement indisponible.'+
+						'</li>'
+					);
+				}
+				else
+				{
+					var totalseasons = $(xml).find('Show').find('totalseasons').text();
+					for (i=0; i<totalseasons; i++)
+					{
+						if (i<10)
+						{
+							var j = '0'+i;
+						}
+						else
+						{
+							var j = i;
+						}
+						
+						$( "#headerListS" ).html('<h3 style="text-align:center;">'+$(xml).find('Show').find('name').text()+'</h3>');
+						
+						$(xml).find('Season[no='+i+']').each(function(){
+							$( "#ListEpisodes" ).append(''+
+								'<li class="ui-li ui-li-divider ui-bar-d ui-li-has-count" data-role="list-divider" role="heading">'+
+								'Saison n°'+i+
+								'<span class="ui-li-count ui-btn-up-c ui-btn-corner-all">'+i+'</span>'+
+								'</li>'
+							);
+							$(xml).find('Season[no='+i+']').find('episode').each(function(){
+							
+
+								var date = $(this).find('airdate').text().split('-'),
+								date = date[2]+"/"+date[1]+"/"+date[0];
+								
+								$( "#ListEpisodes" ).append(''+
+									'<li class="ui-btn ui-btn-icon-right ui-li-has-arrow ui-li ui-btn-up-d" data-corners="false" data-shadow="false" data-iconshadow="true" data-wrapperels="div" data-icon="arrow-r" data-iconpos="right" data-theme="d">'+
+										'<div class="ui-btn-inner ui-li">'+
+											'<div class="ui-btn-text">'+
+												'<a class="ui-link-inherit" href="'+$(this).find('link').text()+'">'+
+													'<p class="ui-li-aside ui-li-desc">'+
+														'<strong>S'+j+'E'+$(this).find('seasonnum').text()+'</strong>'+
+														'</p>'+
+														'<h3 class="ui-li-heading">'+$(this).find('title').text()+'</h3>'+
+														'<p class="ui-li-desc">'+
+														'<strong></strong>'+
+													'</p>'+
+													'<p class="ui-li-desc">&bull; '+date+'</p>'+
+												'</a>'+
+											'</div>'+
+										'<span class="ui-icon ui-icon-arrow-r ui-icon-shadow">&nbsp;</span>'+
+										'</div>'+
+									'</li>'
+								); 
+							});
+						});
+					};
+				}
+			  }
+			});
+		}
+		
+		</script>
+
+	  <title></title>
+	</head>
+	<body>
+		<div data-role="page" id="home">
+			<li data-role="fieldcontain" style="text-align:center">
+				<label for="Serie">Nom de la Série : </label>
+				<input type="text" name="show" id="show" data-type="search" value="" onchange="TVSearch(this.value)"/>
+			</li>
+			<ul data-role="listview" id='listtvshow'>
+			</ul>
+		</div>
+				
+		<div data-role="page" id="ListS">
+			<div data-role="header" style="min-height:45px;">
+				<a href="#home" data-icon="arrow-l">Retour</a>
+				<span id="headerListS"></span>
+			</div>
+			<ul id="ListEpisodes" data-role="listview" data-theme="d" data-divider-theme="d">
+
+			</ul>
+		</div>
+	</body>
+</html>
